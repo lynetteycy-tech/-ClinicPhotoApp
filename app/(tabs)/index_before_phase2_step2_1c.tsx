@@ -627,16 +627,6 @@ export default function App() {
               />
               {/* Camera with Grid Overlay */}
               <View style={styles.gridOverlay}>
-                {/* Face Detection Status */}
-                <View style={styles.faceDetectionOverlay}>
-                  <Text style={styles.faceDetectionText}>
-                    {faceDetected ? '👤 Face Detected' : '🔍 No Face'}
-                  </Text>
-                  <Text style={styles.faceDetectionSubtext}>
-                    Confidence: {(faceConfidence * 100).toFixed(0)}%
-                  </Text>
-                </View>
-                
                 {/* Center crosshair */}
                 <View style={styles.centerCrosshair}>
                   <View style={styles.crosshairHorizontal} />
@@ -647,16 +637,6 @@ export default function App() {
                 <View style={styles.gridLineHorizontal2} />
                 <View style={styles.gridLineVertical1} />
                 <View style={styles.gridLineVertical2} />
-                {/* Face guide circle */}
-                <View style={styles.faceGuideCircle} />
-                
-                {/* Recording Indicator Only */}
-                {isRecording && (
-                  <View style={styles.recordingIndicator}>
-                    <View style={styles.recordingDot} />
-                    <Text style={styles.recordingText}>REC {5 - recordingTime}</Text>
-                  </View>
-                )}
               </View>
             </View>
           </View>
