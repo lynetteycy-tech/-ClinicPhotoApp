@@ -20,199 +20,94 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
 
   // Home Screen
-  const HomeScreen = () => {
-    if (isLoading) {
-      return (
-        <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-          <Text style={styles.title}>Loading patient data...</Text>
+  const HomeScreen = () => (
+    <ScrollView style={styles.fullScreen}>
+      <View style={styles.container}>
+        <View style={styles.medicalHeader}>
+          <Text style={styles.clinicName}>ClinicPhoto AI</Text>
+          <Text style={styles.clinicSubtitle}>Medical Photo Documentation</Text>
         </View>
-      );
-    }
 
-    return (
-      <ScrollView style={styles.fullScreen}>
-        <View style={styles.container}>
-          <View style={styles.medicalHeader}>
-            <Text style={styles.clinicName}>CLINIC PHOTO STANDARDIZER</Text>
-            <Text style={styles.clinicSub}>AI-Powered Medical Documentation</Text>
-          </View>
-          
-          <View style={styles.medicalLogo}>
-            <Text style={styles.logoIcon}>🤖</Text>
-            <Text style={styles.logoText}>AI-POWERED v3.0</Text>
-          </View>
-          
-          <View style={styles.statsBox}>
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{patients.length}</Text>
-              <Text style={styles.statLabel}>Patients</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{patients.reduce((sum, p) => sum + (p.photos || 0), 0)}</Text>
-              <Text style={styles.statLabel}>Photos</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>5</Text>
-              <Text style={styles.statLabel}>Angles</Text>
-            </View>
-          </View>
-          
+        <View style={styles.medicalCard}>
+          <Text style={styles.cardTitle}>📸 Start New Session</Text>
+          <Text style={styles.cardSubtitle}>Begin patient photo capture</Text>
           <TouchableOpacity 
             style={styles.medicalButtonPrimary}
             onPress={() => setCurrentScreen('patient')}
           >
-            <Text style={styles.buttonIcon}>🤖</Text>
+            <Text style={styles.buttonIcon}>👤</Text>
             <View style={styles.buttonTextContainer}>
-              <Text style={styles.buttonTitle}>AI PATIENT SESSION</Text>
-              <Text style={styles.buttonSubtitle}>Auto-standardized photos</Text>
+              <Text style={styles.buttonTitle}>NEW PATIENT</Text>
+              <Text style={styles.buttonSubtitle}>Enter patient details</Text>
             </View>
             <Text style={styles.buttonArrow}>→</Text>
           </TouchableOpacity>
-          
+        </View>
+
+        <View style={styles.medicalCard}>
+          <Text style={styles.cardTitle}>📋 View Gallery</Text>
+          <Text style={styles.cardSubtitle}>Browse patient records</Text>
           <TouchableOpacity 
             style={styles.medicalButtonSecondary}
             onPress={() => setCurrentScreen('comparison')}
           >
-            <Text style={styles.buttonIcon}>👁</Text>
+            <Text style={styles.buttonIcon}>🖼️</Text>
             <View style={styles.buttonTextContainer}>
               <Text style={styles.buttonTitleSecondary}>PATIENT GALLERY</Text>
-              <Text style={styles.buttonSubtitleSecondary}>{patients.length} existing records</Text>
+              <Text style={styles.buttonSubtitleSecondary}>View all records</Text>
             </View>
             <Text style={styles.buttonArrowSecondary}>→</Text>
           </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.medicalButtonTertiary}
-            onPress={() => setCurrentScreen('comparison')}
-          >
-            <Text style={styles.buttonIcon}>⚡</Text>
-            <View style={styles.buttonTextContainer}>
-              <Text style={styles.buttonTitleTertiary}>COMPARISON TOOL</Text>
-              <Text style={styles.buttonSubtitleTertiary}>Before/After AI analysis</Text>
-            </View>
-            <Text style={styles.buttonArrowTertiary}>→</Text>
-          </TouchableOpacity>
-          
-          <View style={styles.protocolBox}>
-            <Text style={styles.protocolTitle}>AI STANDARDIZATION FEATURES</Text>
-            <View style={styles.protocolAngles}>
-              <View style={styles.protocolAngle}>
-                <Text style={styles.angleNumber}>1</Text>
-                <Text style={styles.angleText}>Front</Text>
-              </View>
-              <View style={styles.protocolAngle}>
-                <Text style={styles.angleNumber}>2</Text>
-                <Text style={styles.angleText}>Left 45°</Text>
-              </View>
-              <View style={styles.protocolAngle}>
-                <Text style={styles.angleNumber}>3</Text>
-                <Text style={styles.angleText}>Left 90°</Text>
-              </View>
-              <View style={styles.protocolAngle}>
-                <Text style={styles.angleNumber}>4</Text>
-                <Text style={styles.angleText}>Right 45°</Text>
-              </View>
-              <View style={styles.protocolAngle}>
-                <Text style={styles.angleNumber}>5</Text>
-                <Text style={styles.angleText}>Right 90°</Text>
-              </View>
-            </View>
-            <Text style={styles.protocolNote}>All photos automatically standardized with AI</Text>
-          </View>
-          
-          <Text style={styles.copyright}>© 2024 CLINIC PHOTO STANDARDIZER</Text>
         </View>
-      </ScrollView>
-    );
-  };
+      </View>
+    </ScrollView>
+  );
 
   // Patient Details Screen
-  const PatientDetailsScreen = () => {
-    const [name, setName] = useState<string>('');
-    const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0]);
-    const [notes, setNotes] = useState<string>('');
-
-    const handleStart = () => {
-      if (!name.trim()) {
-        Alert.alert('Required', 'Please enter a patient name.');
-        return;
-      }
-      setCurrentPatient({ name: name.trim(), id: Date.now().toString() });
-      setPatients([...patients, { name: name.trim(), id: Date.now().toString(), date, status: 'In Progress', photos: 0 }]);
-      setCurrentScreen('capture');
-    };
-
-    return (
-      <ScrollView style={styles.fullScreen}>
-        <View style={styles.container}>
-          <View style={styles.captureHeader}>
-            <TouchableOpacity onPress={() => setCurrentScreen('home')}>
-              <Text style={styles.backButtonMedical}>← BACK</Text>
-            </TouchableOpacity>
-            <View style={styles.headerCenter}>
-              <Text style={styles.captureTitle}>PATIENT DETAILS</Text>
-              <Text style={styles.captureSubtitle}>Enter information</Text>
-            </View>
+  const PatientDetailsScreen = () => (
+    <ScrollView style={styles.fullScreen}>
+      <View style={styles.container}>
+        <View style={styles.captureHeader}>
+          <TouchableOpacity onPress={() => setCurrentScreen('home')}>
+            <Text style={styles.backButtonMedical}>← BACK</Text>
+          </TouchableOpacity>
+          <View style={styles.headerCenter}>
+            <Text style={styles.captureTitle}>PATIENT DETAILS</Text>
+            <Text style={styles.captureSubtitle}>Enter patient information</Text>
           </View>
+        </View>
 
-          <View style={styles.protocolBox}>
-            <Text style={styles.protocolTitle}>PATIENT NAME</Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder="Enter patient name"
-              value={name}
-              onChangeText={setName}
-              autoCapitalize="words"
-            />
-          </View>
-
-          <View style={styles.protocolBox}>
-            <Text style={styles.protocolTitle}>DATE</Text>
-            <TextInput
-              style={styles.textInput}
-              value={date}
-              onChangeText={setDate}
-              placeholder="YYYY-MM-DD"
-            />
-          </View>
-
-          <View style={styles.protocolBox}>
-            <Text style={styles.protocolTitle}>NOTES (optional)</Text>
-            <TextInput
-              style={[styles.textInput, { height: 80 }]}
-              placeholder="Treatment notes..."
-              value={notes}
-              onChangeText={setNotes}
-              multiline
-            />
-          </View>
-
-          <TouchableOpacity style={styles.medicalButtonPrimary} onPress={handleStart}>
-            <Text style={styles.buttonIcon}>📸</Text>
+        <View style={styles.medicalCard}>
+          <Text style={styles.cardTitle}>Patient Information</Text>
+          <TextInput
+            style={styles.medicalInput}
+            placeholder="Patient Name"
+            placeholderTextColor="#6B7280"
+            value={currentPatient?.name || ''}
+            onChangeText={(text) => setCurrentPatient({ name: text, id: Date.now().toString() })}
+          />
+          <TouchableOpacity 
+            style={styles.medicalButtonPrimary}
+            onPress={() => {
+              if (currentPatient?.name) {
+                setPatients([...patients, { ...currentPatient, date: new Date().toLocaleDateString(), status: 'In Progress', photos: 0 }]);
+                setCurrentScreen('capture');
+              } else {
+                Alert.alert('Error', 'Please enter patient name');
+              }
+            }}
+          >
+            <Text style={styles.buttonIcon}>📷</Text>
             <View style={styles.buttonTextContainer}>
               <Text style={styles.buttonTitle}>START CAPTURE</Text>
-              <Text style={styles.buttonSubtitle}>Begin 5-angle session</Text>
+              <Text style={styles.buttonSubtitle}>Begin 5-angle photo session</Text>
             </View>
             <Text style={styles.buttonArrow}>→</Text>
           </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.medicalButtonSecondary}
-            onPress={() => setCurrentScreen('home')}
-          >
-            <Text style={styles.buttonIcon}>🏠</Text>
-            <View style={styles.buttonTextContainer}>
-              <Text style={styles.buttonTitleSecondary}>CANCEL</Text>
-              <Text style={styles.buttonSubtitleSecondary}>Return to home</Text>
-            </View>
-            <Text style={styles.buttonArrowSecondary}>→</Text>
-          </TouchableOpacity>
         </View>
-      </ScrollView>
-    );
-  };
+      </View>
+    </ScrollView>
+  );
 
   // Capture Screen with Video Recording
   const CaptureScreen = () => {
@@ -743,53 +638,291 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   clinicName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1F2937',
-    marginBottom: 4,
-  },
-  clinicSub: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  medicalLogo: {
-    alignItems: 'center',
-    marginBottom: 32,
-  },
-  logoIcon: {
-    fontSize: 48,
-    marginBottom: 8,
-  },
-  logoText: {
-    fontSize: 12,
-    color: '#6B7280',
-    fontWeight: 'bold',
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 32,
-  },
-  logo: {
-    fontSize: 48,
-    marginBottom: 8,
-  },
-  title: {
     fontSize: 28,
     fontWeight: 'bold',
     color: '#1F2937',
+    marginBottom: 8,
+  },
+  clinicSubtitle: {
+    fontSize: 16,
+    color: '#6B7280',
+  },
+  medicalCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 24,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  cardTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 8,
+  },
+  cardSubtitle: {
+    fontSize: 16,
+    color: '#6B7280',
+    marginBottom: 20,
+  },
+  medicalButtonPrimary: {
+    backgroundColor: '#3B82F6',
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  medicalButtonSecondary: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  buttonIcon: {
+    fontSize: 24,
+    marginRight: 16,
+  },
+  buttonTextContainer: {
+    flex: 1,
+  },
+  buttonTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
     marginBottom: 4,
   },
-  subtitle: {
+  buttonSubtitle: {
+    fontSize: 14,
+    color: '#93C5FD',
+  },
+  buttonTitleSecondary: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  buttonSubtitleSecondary: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  buttonArrow: {
+    fontSize: 20,
+    color: '#FFFFFF',
+    marginLeft: 16,
+  },
+  buttonArrowSecondary: {
+    fontSize: 20,
+    color: '#6B7280',
+    marginLeft: 16,
+  },
+  captureHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  backButtonMedical: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#3B82F6',
+    marginRight: 16,
+  },
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  captureTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  captureSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+  },
+  medicalInput: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    padding: 16,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    marginBottom: 20,
+    color: '#1F2937',
+  },
+  protocolBox: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  protocolTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginBottom: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  medicalEmptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  emptyTextMedical: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  emptySubtextMedical: {
     fontSize: 16,
     color: '#6B7280',
     textAlign: 'center',
+    marginBottom: 32,
+  },
+  medicalCameraArea: {
+    height: 300,
+    marginBottom: 20,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  aiCameraContainer: {
+    flex: 1,
+    position: 'relative',
+  },
+  camera: {
+    flex: 1,
+  },
+  gridOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    pointerEvents: 'none',
+  },
+  centerCrosshair: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: [{ translateX: -20 }, { translateY: -1 }],
+  },
+  crosshairHorizontal: {
+    width: 40,
+    height: 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+  },
+  crosshairVertical: {
+    position: 'absolute',
+    top: -20,
+    left: 19,
+    width: 2,
+    height: 40,
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+  },
+  gridLineHorizontal1: {
+    position: 'absolute',
+    top: '33%',
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  gridLineHorizontal2: {
+    position: 'absolute',
+    top: '66%',
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  gridLineVertical1: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: '33%',
+    width: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  gridLineVertical2: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: '66%',
+    width: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  instructionsContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  instructionsTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 8,
+  },
+  instructionsText: {
+    fontSize: 16,
+    color: '#374151',
+    marginBottom: 8,
+  },
+  instructionsSubtext: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 12,
+  },
+  angleFeedbackContainer: {
+    backgroundColor: '#F0F9FF',
+    borderRadius: 8,
+    padding: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#3B82F6',
+  },
+  angleDisplay: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  angleFeedback: {
+    fontSize: 14,
+    color: '#6B7280',
   },
   statsBox: {
     flexDirection: 'row',
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
-    padding: 20,
-    marginBottom: 32,
+    padding: 16,
+    marginBottom: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
@@ -800,15 +933,10 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
   },
-  statDivider: {
-    width: 1,
-    backgroundColor: '#E5E7EB',
-    marginHorizontal: 16,
-  },
   statNumber: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#059669',
+    color: '#3B82F6',
     marginBottom: 4,
   },
   statLabel: {
@@ -816,316 +944,10 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     textTransform: 'uppercase',
   },
-  medicalButtonPrimary: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#059669',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  medicalButtonSecondary: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  medicalButtonTertiary: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F3F4F6',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 16,
-  },
-  buttonIcon: {
-    fontSize: 20,
-    marginRight: 12,
-  },
-  buttonTextContainer: {
-    flex: 1,
-  },
-  buttonTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginBottom: 2,
-  },
-  buttonTitleSecondary: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1F2937',
-    marginBottom: 2,
-  },
-  buttonTitleTertiary: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#374151',
-    marginBottom: 2,
-  },
-  buttonSubtitle: {
-    fontSize: 12,
-    color: '#D1FAE5',
-  },
-  buttonSubtitleSecondary: {
-    fontSize: 12,
-    color: '#6B7280',
-  },
-  buttonSubtitleTertiary: {
-    fontSize: 12,
-    color: '#6B7280',
-  },
-  buttonArrow: {
-    fontSize: 16,
-    color: '#FFFFFF',
-  },
-  buttonArrowSecondary: {
-    fontSize: 16,
-    color: '#1F2937',
-  },
-  buttonArrowTertiary: {
-    fontSize: 16,
-    color: '#374151',
-  },
-  protocolBox: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 32,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  protocolTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#374151',
-    marginBottom: 12,
-    textTransform: 'uppercase',
-  },
-  protocolAngles: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  angleItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  protocolAngle: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  angleNumber: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#059669',
-    marginBottom: 2,
-  },
-  angleText: {
-    fontSize: 10,
-    color: '#6B7280',
-    textAlign: 'center',
-  },
-  protocolNote: {
-    fontSize: 12,
-    color: '#6B7280',
-    fontStyle: 'italic',
-    textAlign: 'center',
-  },
-  copyright: {
-    fontSize: 10,
-    color: '#9CA3AF',
-    textAlign: 'center',
-    marginTop: 48,
-  },
-  captureHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 32,
-  },
-  backButtonMedical: {
-    fontSize: 16,
-    color: '#059669',
-    fontWeight: 'bold',
-  },
-  headerCenter: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  captureTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1F2937',
-    marginBottom: 2,
-  },
-  captureSubtitle: {
-    fontSize: 12,
-    color: '#6B7280',
-  },
-  medicalCameraArea: {
-    width: '100%',
-    maxWidth: 350,
-    height: 400,
-    backgroundColor: '#000',
-    borderRadius: 12,
-    marginBottom: 32,
-    overflow: 'hidden',
-  },
-  camera: {
-    flex: 1,
-  },
-  faceDetectionOverlay: {
-    position: 'absolute',
-    top: 20,
-    left: 20,
-    right: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    borderRadius: 8,
-    padding: 12,
-    alignItems: 'center',
-  },
-  faceDetectionText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  faceDetectionSubtext: {
-    color: '#E5E7EB',
-    fontSize: 12,
-  },
-    recordingIndicator: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(239, 68, 68, 0.9)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  recordingDot: {
-    width: 8,
-    height: 8,
-    backgroundColor: '#EF4444',
-    borderRadius: 4,
-    marginRight: 6,
-  },
-  recordingText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-    angleFeedbackContainer: {
-    marginTop: 8,
-    padding: 8,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    borderRadius: 6,
-    alignItems: 'center',
-    maxWidth: '100%',
-  },
-  angleDisplay: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginBottom: 2,
-  },
-  angleFeedback: {
-    color: '#FCA5A5',
-    fontSize: 11,
-    textAlign: 'center',
-  },
-  instructionsContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-    alignItems: 'center',
-  },
-  instructionsTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1F2937',
-    marginBottom: 4,
-  },
-  instructionsText: {
-    fontSize: 14,
-    color: '#374151',
-    marginBottom: 2,
-    textAlign: 'center',
-  },
-  instructionsSubtext: {
-    fontSize: 12,
-    color: '#6B7280',
-    textAlign: 'center',
-  },
-  capturedVideosContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  capturedVideosTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1F2937',
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  capturedVideosList: {
-    gap: 8,
-  },
-  capturedVideoItem: {
-    backgroundColor: '#F9FAFB',
-    borderRadius: 8,
-    padding: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  capturedVideoTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 2,
-  },
-  capturedVideoAngle: {
-    fontSize: 12,
-    color: '#6B7280',
-  },
-  viewVideoButton: {
-    backgroundColor: '#10B981',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-  },
-  viewVideoButtonText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '600',
+  statDivider: {
+    width: 1,
+    backgroundColor: '#E5E7EB',
+    marginHorizontal: 16,
   },
   capturedPhotosContainer: {
     backgroundColor: '#FFFFFF',
@@ -1178,168 +1000,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '600',
   },
-  gridOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    pointerEvents: 'none',
-  },
-  centerCrosshair: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    marginTop: -1,
-    marginLeft: -20,
-  },
-  crosshairHorizontal: {
-    position: 'absolute',
-    width: 40,
-    height: 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
-    top: 0,
-  },
-  crosshairVertical: {
-    position: 'absolute',
-    width: 2,
-    height: 40,
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
-    left: 19,
-  },
-  gridLineHorizontal1: {
-    position: 'absolute',
-    top: '25%',
-    left: 0,
-    right: 0,
-    height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-  },
-  gridLineHorizontal2: {
-    position: 'absolute',
-    top: '75%',
-    left: 0,
-    right: 0,
-    height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-  },
-  gridLineVertical1: {
-    position: 'absolute',
-    left: '25%',
-    top: 0,
-    bottom: 0,
-    width: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-  },
-  gridLineVertical2: {
-    position: 'absolute',
-    left: '75%',
-    top: 0,
-    bottom: 0,
-    width: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-  },
-  faceGuideCircle: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    width: 200,
-    height: 250,
-    marginTop: -125,
-    marginLeft: -100,
-    borderWidth: 2,
-    borderColor: 'rgba(34, 197, 94, 0.8)',
-    borderRadius: 100,
-  },
-  aiCameraContainer: {
-    flex: 1,
-    backgroundColor: '#000',
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  textInput: {
-    width: '100%',
-    maxWidth: 350,
-    height: 48,
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    marginBottom: 8,
-  },
-  medicalEmptyState: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 24,
-    alignItems: 'center',
-    marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  emptyTextMedical: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#374151',
-    marginBottom: 4,
-    textAlign: 'center',
-  },
-  emptySubtextMedical: {
-    fontSize: 12,
-    color: '#6B7280',
-    textAlign: 'center',
-  },
-  medicalPatientCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  patientCardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  patientName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1F2937',
-  },
-  patientDate: {
-    fontSize: 12,
-    color: '#6B7280',
-  },
-  patientCardBody: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  patientStatus: {
-    fontSize: 12,
-    color: '#059669',
-  },
-  angleTags: {
-    flexDirection: 'row',
-  },
-  angleTag: {
-    fontSize: 10,
-    color: '#6B7280',
-    backgroundColor: '#F3F4F6',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    marginLeft: 4,
-  },
   comparisonContainer: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
@@ -1361,7 +1021,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 20,
+    marginBottom: 24,
   },
   imageBox: {
     flex: 1,
@@ -1369,16 +1029,19 @@ const styles = StyleSheet.create({
   },
   imageLabel: {
     fontSize: 14,
-    color: '#6B7280',
+    fontWeight: '600',
+    color: '#374151',
     marginBottom: 8,
   },
   imagePlaceholder: {
     width: 120,
-    height: 120,
+    height: 160,
     backgroundColor: '#F3F4F6',
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#E5E7EB',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   comparisonArrow: {
     fontSize: 24,
@@ -1386,9 +1049,14 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
   },
   analysisBox: {
-    backgroundColor: '#F9FAFB',
-    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
     padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   analysisTitle: {
     fontSize: 16,
