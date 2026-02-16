@@ -227,8 +227,6 @@ export default function App() {
     const [angleFeedback, setAngleFeedback] = useState<string>('Ready to record');
     const [captured, setCaptured] = useState<Record<string, string>>({});
     const [stepIndex, setStepIndex] = useState<number>(0);
-    const [faceDetected, setFaceDetected] = useState<boolean>(false);
-    const [faceConfidence, setFaceConfidence] = useState<number>(0);
     const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
     const realTimeAnalysisRef = useRef<NodeJS.Timeout | null>(null);
     
