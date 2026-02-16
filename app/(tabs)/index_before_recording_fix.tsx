@@ -240,14 +240,6 @@ export default function App() {
     
     const currentStep = steps[stepIndex];
 
-    // Auto-stop recording after 5 seconds
-    useEffect(() => {
-      if (isRecording && recordingTime >= 5) {
-        console.log('[Recording] 5 seconds reached, auto-stopping...');
-        stopRecording();
-      }
-    }, [recordingTime, isRecording]);
-
     // Real-time Progress Tracking
     const analyzeCurrentFrame = async () => {
       try {
@@ -295,13 +287,13 @@ export default function App() {
         setIsRecording(true);
         setRecordingTime(0);
         setCurrentAngle(0);
-        setAngleFeedback('🔄 Starting recording...');
+        setAngleFeedback('🔄 Start turning slowly...');
 
-        // Start recording timer (synced with actual recording)
+        // Start recording timer
         recordingTimerRef.current = setInterval(() => {
           setRecordingTime(prev => {
             if (prev >= 4) {
-              // Timer will trigger stopRecording via useEffect
+              stopRecording();
               return 5;
             }
             return prev + 1;
@@ -313,65 +305,24 @@ export default function App() {
           analyzeCurrentFrame();
         }, 100) as any;
 
-        // Start video recording with VisionCamera v4 API
-        try {
-          const session = await cameraRef.current.startRecording({
-            flash: 'off',
-            onRecordingError: (error) => {
-              console.error('[Recording] AssetWriter Error:', error);
-              setIsRecording(false);
-              setIsProcessing(false);
-              Alert.alert('Recording Error', `Failed to record: ${error.message || 'Unknown error'}`);
-              cleanupTimers();
-            },
-            onRecordingFinished: (video) => {
-              console.log('[Recording] Recording finished successfully');
-              console.log('[Recording] Video path:', video.path);
-              console.log('[Recording] Video file exists:', !!video.path);
-              
-              // Validate video path before processing
-              if (video.path && video.path.length > 0) {
-                processVideo(video.path);
-              } else {
-                console.error('[Recording] Invalid video path received');
-                Alert.alert('Recording Error', 'Video file was not created properly');
-                setIsRecording(false);
-                setIsProcessing(false);
-                cleanupTimers();
-              }
-            }
-          });
-          
-          console.log('[Recording] Started successfully for', currentStep.title);
-          setAngleFeedback('🔄 Turn slowly towards target angle...');
-          
-        } catch (recordingError) {
-          console.error('[Recording] Failed to start recording:', recordingError);
-          setIsRecording(false);
-          setIsProcessing(false);
-          cleanupTimers();
-          const errorMessage = recordingError instanceof Error ? recordingError.message : 'Unknown error';
-          Alert.alert('Recording Error', `Could not start recording: ${errorMessage}`);
-        }
+        // Start video recording
+        const video = await cameraRef.current.startRecording({
+          onRecordingError: (error) => {
+            console.error('[Recording] Error:', error);
+            setIsRecording(false);
+            Alert.alert('Recording Error', 'Failed to record video');
+          },
+          onRecordingFinished: (video) => {
+            console.log('[Recording] Finished:', video.path);
+            processVideo(video.path);
+          }
+        });
 
+        console.log('[Recording] Started for', currentStep.title);
       } catch (error) {
-        console.error('[Recording] General error:', error);
+        console.error('[Recording] Error:', error);
         setIsRecording(false);
-        setIsProcessing(false);
-        cleanupTimers();
         Alert.alert('Error', 'Failed to start recording');
-      }
-    };
-
-    // Cleanup timers helper function
-    const cleanupTimers = () => {
-      if (recordingTimerRef.current) {
-        clearInterval(recordingTimerRef.current);
-        recordingTimerRef.current = null;
-      }
-      if (realTimeAnalysisRef.current) {
-        clearInterval(realTimeAnalysisRef.current);
-        realTimeAnalysisRef.current = null;
       }
     };
 
@@ -380,22 +331,26 @@ export default function App() {
       try {
         if (!cameraRef.current) return;
 
-        console.log('[Recording] Manually stopping recording...');
-        
-        // Clear timers first
-        cleanupTimers();
-        
+        // Clear timers
+        if (recordingTimerRef.current) {
+          clearInterval(recordingTimerRef.current);
+          recordingTimerRef.current = null;
+        }
+        if (realTimeAnalysisRef.current) {
+          clearInterval(realTimeAnalysisRef.current);
+          realTimeAnalysisRef.current = null;
+        }
+
         setIsRecording(false);
         setIsProcessing(true);
 
         // Stop recording
         await cameraRef.current.stopRecording();
-        console.log('[Recording] Stopped successfully');
+        console.log('[Recording] Stopped');
       } catch (error) {
         console.error('[Recording] Error stopping:', error);
         setIsRecording(false);
         setIsProcessing(false);
-        cleanupTimers();
       }
     };
 
