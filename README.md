@@ -41,6 +41,55 @@ Clinic Photo AI revolutionizes medical photography by providing:
 
 ---
 
+## Phase 2.2 — Real Angle Calculation (IMMEDIATE NEXT)
+
+Why this first
+- Foundation for all downstream features (frame selection, quality checks).
+- Most critical AI component that must be accurate and repeatable.
+
+Recommended approach (start here)
+1. VisionCamera built-in landmarks -> fast, simple integration (start)
+2. Upgrade to MediaPipe for robust 3D/pose if results are insufficient
+3. Custom TFLite model only if project needs specialized clinical accuracy
+
+What I added in this workspace
+- `src/angle.js` — lightweight, platform-agnostic angle utilities (2D/3D)
+- `tests/angle.test.js` — unit tests using Node's built-in test runner
+- `package.json` — `npm test` runs the unit tests
+
+Acceptance criteria ✅
+- Deterministic angle primitives (angle at a point, roll-from-eyes)
+- Lightweight head-pose heuristic returning `{pitch,yaw,roll}` in degrees
+- Unit tests that validate basic geometries and heuristics
+
+Quick VisionCamera integration (example)
+```js
+// pseudo-code for a VisionCamera frame-processor
+import { estimateHeadPose } from './src/angle';
+
+function frameProcessor(frame) {
+  const face = frame.faces?.[0];
+  if (!face || !face.landmarks) return;
+
+  const landmarks = {
+    leftEye: face.landmarks.leftEye,
+    rightEye: face.landmarks.rightEye,
+    nose: face.landmarks.noseBase || face.landmarks.nose,
+    chin: face.landmarks.chin || { x: face.boundingBox.x + face.boundingBox.width/2, y: face.boundingBox.y + face.boundingBox.height }
+  };
+
+  const { pitch, yaw, roll } = estimateHeadPose(landmarks);
+  // use angles to gate frame capture or annotate UI
+}
+```
+
+Next steps
+1. Wire `estimateHeadPose` into the VisionCamera frame-processor (Phase 2.3)
+2. Add automated e2e frameset tests and threshold tuning
+3. Replace heuristic with MediaPipe/solvePnP if precision targets are not met
+
+---
+
 ## 🛠 **Tech Stack**
 
 ### **Frontend**
@@ -238,3 +287,4 @@ Medical AI project - Private repository
 ---
 
 *🏥 Built with ❤️ for medical professionals and AI innovation*
+
