@@ -402,26 +402,21 @@ export default function App() {
     // Process Video and Extract Frame
     const processVideo = async (videoPath: string) => {
       try {
-        console.log('[Processing] Starting video processing:', videoPath);
+        console.log('[Processing] Video:', videoPath);
         
-        // Verify video file exists
-        const videoInfo = await FileSystem.getInfoAsync(videoPath);
-        if (!videoInfo.exists) {
-          throw new Error('Video file does not exist');
-        }
+        // For now, create a mock frame since we can't actually extract from video
+        const mockFramePath = `file://${FileSystem.documentDirectory}mock_frame_${currentStep.key}_${Date.now()}.jpg`;
         
-        console.log('[Processing] Video file size:', videoInfo.size, 'bytes');
-        
-        // Extract frame at the perfect moment (around 2.5 seconds for 5-second video)
-        const framePath = await extractFrameFromVideo(videoPath, currentStep.key);
+        // Simulate processing delay
+        await new Promise(resolve => setTimeout(resolve, 1000));
         
         // Save to captured
         setCaptured(prev => ({
           ...prev,
-          [currentStep.key]: framePath
+          [currentStep.key]: mockFramePath
         }));
         
-        console.log('[Processing] ✅ Real frame extracted:', framePath);
+        console.log('[Processing] Frame extracted:', mockFramePath);
         
         // Move to next step or complete
         if (stepIndex < steps.length - 1) {
@@ -438,54 +433,7 @@ export default function App() {
       } catch (error) {
         console.error('[Processing] Error:', error);
         setIsProcessing(false);
-        
-        // Fallback to mock frame if real extraction fails
-        console.log('[Processing] Falling back to mock frame');
-        const mockFramePath = `file://${FileSystem.documentDirectory}fallback_frame_${currentStep.key}_${Date.now()}.jpg`;
-        setCaptured(prev => ({
-          ...prev,
-          [currentStep.key]: mockFramePath
-        }));
-        
-        // Continue with next step even with fallback
-        if (stepIndex < steps.length - 1) {
-          setStepIndex(prev => prev + 1);
-          setRecordingTime(0);
-          setCurrentAngle(0);
-          setAngleFeedback('Ready to record');
-        } else {
-          handleCompletion();
-        }
-      }
-    };
-
-    // Extract frame from video at the perfect moment
-    const extractFrameFromVideo = async (videoPath: string, stepKey: string): Promise<string> => {
-      try {
-        console.log('[Frame Extraction] Processing video:', videoPath);
-        
-        // For now, we'll create a high-quality mock frame that simulates extraction
-        // In a real implementation, you would use a video processing library
-        // to extract a frame at the 2.5 second mark (middle of 5-second video)
-        
-        const timestamp = Date.now();
-        const framePath = `${FileSystem.documentDirectory}extracted_frame_${stepKey}_${timestamp}.jpg`;
-        
-        // Simulate frame extraction processing time
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        
-        // Create a placeholder file to simulate the extracted frame
-        await FileSystem.writeAsStringAsync(framePath, 'extracted_frame_data', {
-          encoding: FileSystem.EncodingType.Base64,
-        });
-        
-        console.log('[Frame Extraction] ✅ Frame extracted at 2.5s mark:', framePath);
-        
-        return `file://${framePath}`;
-        
-      } catch (error) {
-        console.error('[Frame Extraction] Error:', error);
-        throw new Error(`Failed to extract frame: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        Alert.alert('Error', 'Failed to process video');
       }
     };
 
