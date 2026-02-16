@@ -250,29 +250,6 @@ export default function App() {
       }
     }, [recordingTime, isRecording]);
 
-    // Face Detection Frame Processor
-    const frameProcessor = useFrameProcessor((frame) => {
-      'worklet';
-      
-      try {
-        // Simulate face detection for now
-        // In a real implementation, you would use a face detection model here
-        const hasFace = Math.random() > 0.1; // 90% chance of face detection
-        const confidence = hasFace ? 0.85 + Math.random() * 0.15 : 0;
-        
-        // Update state on JS thread
-        if (setFaceDetected && setFaceConfidence) {
-          setFaceDetected(hasFace);
-          setFaceConfidence(confidence);
-        }
-        
-        console.log('[Frame Processor] Face detected:', hasFace, 'Confidence:', confidence.toFixed(2));
-        
-      } catch (error) {
-        console.log('[Frame Processor] Error:', error);
-      }
-    }, [setFaceDetected, setFaceConfidence]);
-
     // Real-time Progress Tracking
     const analyzeCurrentFrame = async () => {
       try {
@@ -647,7 +624,6 @@ export default function App() {
                 audio={false}
                 enableZoomGesture={false}
                 enableFpsGraph={false}
-                frameProcessor={frameProcessor}
               />
               {/* Camera with Grid Overlay */}
               <View style={styles.gridOverlay}>
