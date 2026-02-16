@@ -12,6 +12,8 @@ import {
 import { Camera, useCameraDevice, useCameraPermission, useFrameProcessor } from 'react-native-vision-camera';
 import * as MediaLibrary from 'expo-media-library';
 import * as FileSystem from 'expo-file-system/legacy';
+import { estimateHeadPose } from '../../src/angle';
+
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState<'home' | 'patient' | 'capture' | 'workflow' | 'comparison'>('home');
@@ -57,6 +59,15 @@ export default function App() {
               <Text style={styles.statNumber}>5</Text>
               <Text style={styles.statLabel}>Angles</Text>
             </View>
+          </View>
+
+          {/* Project phases progress (visual) */}
+          <View style={styles.progressContainer}>
+            <Text style={styles.progressLabel}>Project Progress</Text>
+            <View style={styles.progressBarContainer}>
+              <View style={[styles.progressBarFill, { width: `65%` }]} />
+            </View>
+            <Text style={styles.progressPercent}>65% complete — Phase 2.2</Text>
           </View>
           
           <TouchableOpacity 
@@ -229,6 +240,7 @@ export default function App() {
     const [stepIndex, setStepIndex] = useState<number>(0);
     const [faceDetected, setFaceDetected] = useState<boolean>(false);
     const [faceConfidence, setFaceConfidence] = useState<number>(0);
+    const [debugPose, setDebugPose] = useState<{pitch:number,yaw:number,roll:number}>({ pitch: 0, yaw: 0, roll: 0 });
     const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
     const realTimeAnalysisRef = useRef<NodeJS.Timeout | null>(null);
     
@@ -309,6 +321,22 @@ export default function App() {
         console.error('[Real-time] Error:', error);
       }
     };
+
+    // Update debug pose (uses `src/angle.js` heuristics) — demo/synthetic landmarks
+    useEffect(() => {
+      try {
+        const yaw = currentAngle; // degrees (simulated)
+        const noseX = (yaw / 90) * 0.05; // small normalized offset for demo
+        const leftEye = { x: -0.03, y: 0 };
+        const rightEye = { x: 0.03, y: 0 };
+        const nose = { x: noseX, y: 0.12 };
+        const chin = { x: noseX, y: 0.6 };
+        const p = estimateHeadPose({ leftEye, rightEye, nose, chin });
+        setDebugPose(p);
+      } catch (e) {
+        // ignore
+      }
+    }, [currentAngle, faceDetected]);
 
     // Start Recording
     const startRecording = async () => {
@@ -660,6 +688,14 @@ export default function App() {
                   <Text style={styles.faceDetectionSubtext}>
                     Confidence: {(faceConfidence * 100).toFixed(0)}%
                   </Text>
+                </View>
+
+                {/* Debug overlay — shows pose estimated from `src/angle.js` (demo landmarks) */}
+                <View style={styles.debugOverlay} pointerEvents="none">
+                  <Text style={styles.debugTitle}>Debug pose</Text>
+                  <Text style={styles.debugText}>Yaw: {debugPose.yaw.toFixed(1)}°</Text>
+                  <Text style={styles.debugText}>Pitch: {debugPose.pitch.toFixed(1)}°</Text>
+                  <Text style={styles.debugText}>Roll: {debugPose.roll.toFixed(1)}°</Text>
                 </View>
                 
                 {/* Center crosshair */}
