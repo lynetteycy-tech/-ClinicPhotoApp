@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
-import { Camera, useCameraDevice, useCameraPermission, useFrameProcessor } from 'react-native-vision-camera';
+import { Camera, useCameraDevice, useCameraPermission } from 'react-native-vision-camera';
 import * as MediaLibrary from 'expo-media-library';
 import * as FileSystem from 'expo-file-system/legacy';
 
@@ -227,8 +227,6 @@ export default function App() {
     const [angleFeedback, setAngleFeedback] = useState<string>('Ready to record');
     const [captured, setCaptured] = useState<Record<string, string>>({});
     const [stepIndex, setStepIndex] = useState<number>(0);
-    const [faceDetected, setFaceDetected] = useState<boolean>(false);
-    const [faceConfidence, setFaceConfidence] = useState<number>(0);
     const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
     const realTimeAnalysisRef = useRef<NodeJS.Timeout | null>(null);
     
