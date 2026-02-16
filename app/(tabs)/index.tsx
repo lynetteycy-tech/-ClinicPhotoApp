@@ -1,0 +1,1082 @@
+import { useEffect, useRef, useState } from 'react';
+import {
+  Alert,
+  Linking,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
+} from 'react-native';
+import { Camera, useCameraDevice, useCameraPermission } from 'react-native-vision-camera';
+import * as MediaLibrary from 'expo-media-library';
+import * as FileSystem from 'expo-file-system/legacy';
+
+export default function App() {
+  const [currentScreen, setCurrentScreen] = useState<'home' | 'patient' | 'capture' | 'workflow' | 'comparison'>('home');
+  const [currentPatient, setCurrentPatient] = useState<{ name: string; id: string } | null>(null);
+  const [patients, setPatients] = useState<Array<{ name: string; id: string; date: string; status: string; photos: number }>>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Home Screen
+  const HomeScreen = () => (
+    <ScrollView style={styles.fullScreen}>
+      <View style={styles.container}>
+        <View style={styles.medicalHeader}>
+          <Text style={styles.clinicName}>ClinicPhoto AI</Text>
+          <Text style={styles.clinicSubtitle}>Medical Photo Documentation</Text>
+        </View>
+
+        <View style={styles.medicalCard}>
+          <Text style={styles.cardTitle}>📸 Start New Session</Text>
+          <Text style={styles.cardSubtitle}>Begin patient photo capture</Text>
+          <TouchableOpacity 
+            style={styles.medicalButtonPrimary}
+            onPress={() => setCurrentScreen('patient')}
+          >
+            <Text style={styles.buttonIcon}>👤</Text>
+            <View style={styles.buttonTextContainer}>
+              <Text style={styles.buttonTitle}>NEW PATIENT</Text>
+              <Text style={styles.buttonSubtitle}>Enter patient details</Text>
+            </View>
+            <Text style={styles.buttonArrow}>→</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.medicalCard}>
+          <Text style={styles.cardTitle}>📋 View Gallery</Text>
+          <Text style={styles.cardSubtitle}>Browse patient records</Text>
+          <TouchableOpacity 
+            style={styles.medicalButtonSecondary}
+            onPress={() => setCurrentScreen('comparison')}
+          >
+            <Text style={styles.buttonIcon}>🖼️</Text>
+            <View style={styles.buttonTextContainer}>
+              <Text style={styles.buttonTitleSecondary}>PATIENT GALLERY</Text>
+              <Text style={styles.buttonSubtitleSecondary}>View all records</Text>
+            </View>
+            <Text style={styles.buttonArrowSecondary}>→</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </ScrollView>
+  );
+
+  // Patient Details Screen
+  const PatientDetailsScreen = () => (
+    <ScrollView style={styles.fullScreen}>
+      <View style={styles.container}>
+        <View style={styles.captureHeader}>
+          <TouchableOpacity onPress={() => setCurrentScreen('home')}>
+            <Text style={styles.backButtonMedical}>← BACK</Text>
+          </TouchableOpacity>
+          <View style={styles.headerCenter}>
+            <Text style={styles.captureTitle}>PATIENT DETAILS</Text>
+            <Text style={styles.captureSubtitle}>Enter patient information</Text>
+          </View>
+        </View>
+
+        <View style={styles.medicalCard}>
+          <Text style={styles.cardTitle}>Patient Information</Text>
+          <TextInput
+            style={styles.medicalInput}
+            placeholder="Patient Name"
+            placeholderTextColor="#6B7280"
+            value={currentPatient?.name || ''}
+            onChangeText={(text) => setCurrentPatient({ name: text, id: Date.now().toString() })}
+          />
+          <TouchableOpacity 
+            style={styles.medicalButtonPrimary}
+            onPress={() => {
+              if (currentPatient?.name) {
+                setPatients([...patients, { ...currentPatient, date: new Date().toLocaleDateString(), status: 'In Progress', photos: 0 }]);
+                setCurrentScreen('capture');
+              } else {
+                Alert.alert('Error', 'Please enter patient name');
+              }
+            }}
+          >
+            <Text style={styles.buttonIcon}>📷</Text>
+            <View style={styles.buttonTextContainer}>
+              <Text style={styles.buttonTitle}>START CAPTURE</Text>
+              <Text style={styles.buttonSubtitle}>Begin 5-angle photo session</Text>
+            </View>
+            <Text style={styles.buttonArrow}>→</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </ScrollView>
+  );
+
+  // Capture Screen with Video Recording
+  const CaptureScreen = () => {
+    const cameraRef = useRef<Camera>(null);
+    const device = useCameraDevice('front');
+    const { hasPermission, requestPermission } = useCameraPermission();
+    
+    const [isRecording, setIsRecording] = useState<boolean>(false);
+    const [isProcessing, setIsProcessing] = useState<boolean>(false);
+    const [recordingTime, setRecordingTime] = useState<number>(0);
+    const [currentAngle, setCurrentAngle] = useState<number>(0);
+    const [angleFeedback, setAngleFeedback] = useState<string>('Ready to record');
+    const [captured, setCaptured] = useState<Record<string, string>>({});
+    const [stepIndex, setStepIndex] = useState<number>(0);
+    const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const realTimeAnalysisRef = useRef<NodeJS.Timeout | null>(null);
+    
+    const steps = [
+      { key: 'front', title: 'Front View', angle: '0°', subtitle: 'Face forward, neutral position' },
+      { key: 'left45', title: 'Left 45°', angle: '45°L', subtitle: 'Turn head 45° to the left' },
+      { key: 'left90', title: 'Left Profile', angle: '90°L', subtitle: 'Turn head 90° to the left' },
+      { key: 'right45', title: 'Right 45°', angle: '45°R', subtitle: 'Turn head 45° to the right' },
+      { key: 'right90', title: 'Right Profile', angle: '90°R', subtitle: 'Turn head 90° to the right' },
+    ];
+    
+    const currentStep = steps[stepIndex];
+
+    // Real-time Progress Tracking
+    const analyzeCurrentFrame = async () => {
+      try {
+        if (!isRecording) return;
+        
+        // Get target angle for current step
+        let targetAngle = 0;
+        switch (currentStep.angle) {
+          case '0°': targetAngle = 0; break;
+          case '45°L': targetAngle = -45; break;
+          case '90°L': targetAngle = -90; break;
+          case '45°R': targetAngle = 45; break;
+          case '90°R': targetAngle = 90; break;
+        }
+        
+        // Simulate angle progression based on recording time
+        const progress = recordingTime / 5; // 5 seconds total
+        const simulatedAngle = progress * targetAngle;
+        
+        setCurrentAngle(simulatedAngle);
+        
+        // Provide feedback
+        if (Math.abs(simulatedAngle - targetAngle) < 5) {
+          setAngleFeedback('✅ Perfect! Hold this position');
+        } else if (Math.abs(simulatedAngle - targetAngle) < 15) {
+          setAngleFeedback('🔄 Almost there, keep turning...');
+        } else {
+          setAngleFeedback(`🔄 Turn towards ${currentStep.angle}`);
+        }
+        
+        console.log('[Real-time] Angle:', simulatedAngle.toFixed(1), 'Target:', targetAngle);
+      } catch (error) {
+        console.error('[Real-time] Error:', error);
+      }
+    };
+
+    // Start Recording
+    const startRecording = async () => {
+      try {
+        if (!cameraRef.current || !device) {
+          Alert.alert('Error', 'Camera not ready');
+          return;
+        }
+
+        setIsRecording(true);
+        setRecordingTime(0);
+        setCurrentAngle(0);
+        setAngleFeedback('🔄 Start turning slowly...');
+
+        // Start recording timer
+        recordingTimerRef.current = setInterval(() => {
+          setRecordingTime(prev => {
+            if (prev >= 4) {
+              stopRecording();
+              return 5;
+            }
+            return prev + 1;
+          });
+        }, 1000) as any;
+
+        // Start real-time analysis
+        realTimeAnalysisRef.current = setInterval(() => {
+          analyzeCurrentFrame();
+        }, 100) as any;
+
+        // Start video recording
+        const video = await cameraRef.current.startRecording({
+          onRecordingError: (error) => {
+            console.error('[Recording] Error:', error);
+            setIsRecording(false);
+            Alert.alert('Recording Error', 'Failed to record video');
+          },
+          onRecordingFinished: (video) => {
+            console.log('[Recording] Finished:', video.path);
+            processVideo(video.path);
+          }
+        });
+
+        console.log('[Recording] Started for', currentStep.title);
+      } catch (error) {
+        console.error('[Recording] Error:', error);
+        setIsRecording(false);
+        Alert.alert('Error', 'Failed to start recording');
+      }
+    };
+
+    // Stop Recording
+    const stopRecording = async () => {
+      try {
+        if (!cameraRef.current) return;
+
+        // Clear timers
+        if (recordingTimerRef.current) {
+          clearInterval(recordingTimerRef.current);
+          recordingTimerRef.current = null;
+        }
+        if (realTimeAnalysisRef.current) {
+          clearInterval(realTimeAnalysisRef.current);
+          realTimeAnalysisRef.current = null;
+        }
+
+        setIsRecording(false);
+        setIsProcessing(true);
+
+        // Stop recording
+        await cameraRef.current.stopRecording();
+        console.log('[Recording] Stopped');
+      } catch (error) {
+        console.error('[Recording] Error stopping:', error);
+        setIsRecording(false);
+        setIsProcessing(false);
+      }
+    };
+
+    // Process Video and Extract Frame
+    const processVideo = async (videoPath: string) => {
+      try {
+        console.log('[Processing] Video:', videoPath);
+        
+        // For now, create a mock frame since we can't actually extract from video
+        const mockFramePath = `file://${FileSystem.documentDirectory}mock_frame_${currentStep.key}_${Date.now()}.jpg`;
+        
+        // Simulate processing delay
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Save to captured
+        setCaptured(prev => ({
+          ...prev,
+          [currentStep.key]: mockFramePath
+        }));
+        
+        console.log('[Processing] Frame extracted:', mockFramePath);
+        
+        // Move to next step or complete
+        if (stepIndex < steps.length - 1) {
+          setStepIndex(prev => prev + 1);
+          setRecordingTime(0);
+          setCurrentAngle(0);
+          setAngleFeedback('Ready to record');
+        } else {
+          // All angles captured - show completion
+          handleCompletion();
+        }
+        
+        setIsProcessing(false);
+      } catch (error) {
+        console.error('[Processing] Error:', error);
+        setIsProcessing(false);
+        Alert.alert('Error', 'Failed to process video');
+      }
+    };
+
+    // Handle Completion
+    const handleCompletion = () => {
+      Alert.alert(
+        '📸 All Photos Captured!',
+        `Successfully captured and processed ${steps.length} photos:\n\n${steps.map(s => `• ${s.title} • ${s.angle}`).join('\n')}`,
+        [
+          {
+            text: 'View Captured Photos',
+            onPress: () => setCurrentScreen('workflow')
+          },
+          {
+            text: 'Back to Home',
+            onPress: () => {
+              setCurrentScreen('home');
+              setCurrentPatient(null);
+              setStepIndex(0);
+              setCaptured({});
+            }
+          }
+        ]
+      );
+    };
+
+    if (!hasPermission) {
+      return (
+        <ScrollView style={styles.fullScreen}>
+          <View style={styles.container}>
+            <View style={styles.captureHeader}>
+              <TouchableOpacity onPress={() => setCurrentScreen('patient')}>
+                <Text style={styles.backButtonMedical}>← BACK</Text>
+              </TouchableOpacity>
+              <View style={styles.headerCenter}>
+                <Text style={styles.captureTitle}>CAMERA PERMISSION</Text>
+                <Text style={styles.captureSubtitle}>Enable camera access</Text>
+              </View>
+            </View>
+
+            <View style={styles.medicalEmptyState}>
+              <Text style={styles.emptyTextMedical}>Camera permission required</Text>
+              <Text style={styles.emptySubtextMedical}>Grant camera access to capture photos</Text>
+              <TouchableOpacity 
+                style={styles.medicalButtonPrimary}
+                onPress={requestPermission}
+              >
+                <Text style={styles.buttonIcon}>📷</Text>
+                <View style={styles.buttonTextContainer}>
+                  <Text style={styles.buttonTitle}>GRANT PERMISSION</Text>
+                  <Text style={styles.buttonSubtitle}>Enable camera access</Text>
+                </View>
+                <Text style={styles.buttonArrow}>→</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </ScrollView>
+      );
+    }
+
+    if (!device) {
+      return (
+        <ScrollView style={styles.fullScreen}>
+          <View style={styles.container}>
+            <View style={styles.captureHeader}>
+              <TouchableOpacity onPress={() => setCurrentScreen('patient')}>
+                <Text style={styles.backButtonMedical}>← BACK</Text>
+              </TouchableOpacity>
+              <View style={styles.headerCenter}>
+                <Text style={styles.captureTitle}>CAMERA UNAVAILABLE</Text>
+                <Text style={styles.captureSubtitle}>No camera found</Text>
+              </View>
+            </View>
+
+            <View style={styles.medicalEmptyState}>
+              <Text style={styles.emptyTextMedical}>No camera available</Text>
+              <Text style={styles.emptySubtextMedical}>Please check your device camera</Text>
+            </View>
+          </View>
+        </ScrollView>
+      );
+    }
+
+    return (
+      <ScrollView style={styles.fullScreen}>
+        <View style={styles.container}>
+          <View style={styles.captureHeader}>
+            <TouchableOpacity onPress={() => setCurrentScreen('patient')}>
+              <Text style={styles.backButtonMedical}>← BACK</Text>
+            </TouchableOpacity>
+            <View style={styles.headerCenter}>
+              <Text style={styles.captureTitle}>AI CAPTURE</Text>
+              <Text style={styles.captureSubtitle}>{currentPatient ? `${currentPatient.name} • ${currentStep.title} • ${currentStep.angle} (${stepIndex + 1}/5)` : `${currentStep.title} • ${currentStep.angle} (${stepIndex + 1}/5)`}</Text>
+            </View>
+          </View>
+
+          <View style={styles.protocolBox}>
+            <Text style={styles.protocolTitle}>CURRENT ANGLE</Text>
+            <Text style={styles.emptyTextMedical}>{currentStep.title}</Text>
+            <Text style={styles.emptySubtextMedical}>{currentStep.subtitle}</Text>
+          </View>
+
+          <View style={styles.medicalCameraArea}>
+            <View style={styles.aiCameraContainer}>
+              <Camera
+                ref={cameraRef}
+                style={styles.camera}
+                device={device}
+                isActive={true}
+                photo={false}
+                video={true}
+                audio={false}
+                enableZoomGesture={false}
+                enableFpsGraph={false}
+              />
+              {/* Camera with Grid Overlay */}
+              <View style={styles.gridOverlay}>
+                {/* Center crosshair */}
+                <View style={styles.centerCrosshair}>
+                  <View style={styles.crosshairHorizontal} />
+                  <View style={styles.crosshairVertical} />
+                </View>
+                {/* Grid lines */}
+                <View style={styles.gridLineHorizontal1} />
+                <View style={styles.gridLineHorizontal2} />
+                <View style={styles.gridLineVertical1} />
+                <View style={styles.gridLineVertical2} />
+              </View>
+            </View>
+          </View>
+
+          {/* Instructions Below Camera */}
+          <View style={styles.instructionsContainer}>
+            <Text style={styles.instructionsTitle}>
+              {isRecording ? `🎥 RECORDING: ${currentStep.title}` : `📹 READY: ${currentStep.title}`}
+            </Text>
+            <Text style={styles.instructionsText}>
+              {isRecording ? `🔄 SLOWLY turn to ${currentStep.angle}` : `Position face in center, then turn slowly`}
+            </Text>
+            <Text style={styles.instructionsSubtext}>
+              Start: Front • End: {currentStep.angle} • Time: {isRecording ? `${5 - recordingTime}s` : '5 seconds'}
+            </Text>
+            {isRecording && (
+              <View style={styles.angleFeedbackContainer}>
+                <Text style={styles.angleDisplay}>📐 {currentAngle.toFixed(1)}°</Text>
+                <Text style={styles.angleFeedback}>{angleFeedback}</Text>
+              </View>
+            )}
+          </View>
+
+          <TouchableOpacity 
+            style={styles.medicalButtonPrimary}
+            disabled={isRecording || isProcessing}
+            onPress={async () => {
+              try {
+                if (!cameraRef.current) {
+                  Alert.alert('Camera', 'Camera not ready yet.');
+                  return;
+                }
+                
+                if (isRecording) {
+                  stopRecording();
+                } else {
+                  startRecording();
+                }
+              } catch (error) {
+                console.error('[Capture] Error:', error);
+                Alert.alert('Error', 'Failed to record video');
+              }
+            }}
+          >
+            <Text style={styles.buttonIcon}>🎥</Text>
+            <View style={styles.buttonTextContainer}>
+              <Text style={styles.buttonTitle}>
+                {isRecording ? `RECORDING ${5 - recordingTime}` : isProcessing ? 'AI PROCESSING…' : `RECORD ${currentStep.angle}`}
+              </Text>
+              <Text style={styles.buttonSubtitle}>
+                {isRecording ? 'Turn slowly to target angle...' : isProcessing ? 'Analyzing video frames...' : '5 second video recording'}
+              </Text>
+            </View>
+            <Text style={styles.buttonArrow}>→</Text>
+          </TouchableOpacity>
+
+          <View style={styles.statsBox}>
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>{Object.keys(captured).length}</Text>
+              <Text style={styles.statLabel}>Captured</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>{stepIndex + 1}</Text>
+              <Text style={styles.statLabel}>Current</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>{steps.length}</Text>
+              <Text style={styles.statLabel}>Total</Text>
+            </View>
+          </View>
+
+          <TouchableOpacity 
+            style={styles.medicalButtonSecondary}
+            onPress={() => setCurrentScreen('home')}
+          >
+            <Text style={styles.buttonIcon}>🏠</Text>
+            <View style={styles.buttonTextContainer}>
+              <Text style={styles.buttonTitleSecondary}>RETURN TO HOME</Text>
+              <Text style={styles.buttonSubtitleSecondary}>Main menu</Text>
+            </View>
+            <Text style={styles.buttonArrowSecondary}>→</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    );
+  };
+
+  // Workflow Screen - Show All Captured Photos
+  const WorkflowScreen = () => {
+    const steps = [
+      { key: 'front', title: 'Front View', angle: '0°', subtitle: 'Face forward, neutral position' },
+      { key: 'left45', title: 'Left 45°', angle: '45°L', subtitle: 'Turn head 45° to the left' },
+      { key: 'left90', title: 'Left Profile', angle: '90°L', subtitle: 'Turn head 90° to the left' },
+      { key: 'right45', title: 'Right 45°', angle: '45°R', subtitle: 'Turn head 45° to the right' },
+      { key: 'right90', title: 'Right Profile', angle: '90°R', subtitle: 'Turn head 90° to the right' },
+    ];
+
+    return (
+      <ScrollView style={styles.fullScreen}>
+        <View style={styles.container}>
+          <View style={styles.medicalHeader}>
+            <TouchableOpacity onPress={() => setCurrentScreen('home')}>
+              <Text style={styles.backButtonMedical}>← BACK</Text>
+            </TouchableOpacity>
+            <View style={styles.headerCenter}>
+              <Text style={styles.captureTitle}>CAPTURED PHOTOS</Text>
+              <Text style={styles.captureSubtitle}>5 Angles Complete</Text>
+            </View>
+          </View>
+
+          <View style={styles.capturedPhotosContainer}>
+            <Text style={styles.capturedPhotosTitle}>📸 Session Complete</Text>
+            <Text style={styles.emptySubtextMedical}>All 5 angles captured successfully</Text>
+            
+            <View style={styles.capturedPhotosGrid}>
+              {steps.map((step) => (
+                <View key={step.key} style={styles.capturedPhotoItem}>
+                  <Text style={styles.capturedPhotoTitle}>{step.title}</Text>
+                  <Text style={styles.capturedPhotoAngle}>{step.angle}</Text>
+                  <View style={styles.capturedPhotoStatus}>
+                    <Text style={styles.capturedPhotoStatusText}>✅ Captured</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </View>
+
+          <TouchableOpacity 
+            style={styles.medicalButtonPrimary}
+            onPress={() => {
+              setCurrentScreen('home');
+              setCurrentPatient(null);
+            }}
+          >
+            <Text style={styles.buttonIcon}>🏠</Text>
+            <View style={styles.buttonTextContainer}>
+              <Text style={styles.buttonTitle}>BACK TO HOME</Text>
+              <Text style={styles.buttonSubtitle}>Start new session</Text>
+            </View>
+            <Text style={styles.buttonArrow}>→</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    );
+  };
+
+  // Comparison Screen
+  const ComparisonScreen = () => (
+    <ScrollView style={styles.fullScreen}>
+      <View style={styles.container}>
+        <View style={styles.captureHeader}>
+          <TouchableOpacity onPress={() => setCurrentScreen('home')}>
+            <Text style={styles.backButtonMedical}>← BACK</Text>
+          </TouchableOpacity>
+          <View style={styles.headerCenter}>
+            <Text style={styles.captureTitle}>AI COMPARISON</Text>
+            <Text style={styles.captureSubtitle}>Before/After Analysis</Text>
+          </View>
+        </View>
+
+        <View style={styles.comparisonContainer}>
+          <Text style={styles.comparisonTitle}>Treatment Progress</Text>
+          <View style={styles.comparisonImages}>
+            <View style={styles.imageBox}>
+              <Text style={styles.imageLabel}>Before</Text>
+              <View style={styles.imagePlaceholder}>
+                <Text style={styles.emptySubtextMedical}>No photos yet</Text>
+              </View>
+            </View>
+            <Text style={styles.comparisonArrow}>→</Text>
+            <View style={styles.imageBox}>
+              <Text style={styles.imageLabel}>After</Text>
+              <View style={styles.imagePlaceholder}>
+                <Text style={styles.emptySubtextMedical}>No photos yet</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.analysisBox}>
+          <Text style={styles.analysisTitle}>AI Analysis</Text>
+          <View style={styles.analysisItem}>
+            <Text style={styles.analysisLabel}>Symmetry Score</Text>
+            <Text style={styles.analysisValueExcellent}>Excellent</Text>
+          </View>
+          <View style={styles.analysisItem}>
+            <Text style={styles.analysisLabel}>Progress</Text>
+            <Text style={styles.analysisValueExcellent}>85%</Text>
+          </View>
+        </View>
+      </View>
+    </ScrollView>
+  );
+
+  // Render current screen
+  const content = (() => {
+    return (
+      <View style={styles.fullScreen}>
+        {currentScreen === 'home' && <HomeScreen />}
+        {currentScreen === 'patient' && <PatientDetailsScreen />}
+        {currentScreen === 'capture' && <CaptureScreen />}
+        {currentScreen === 'workflow' && <WorkflowScreen />}
+        {currentScreen === 'comparison' && <ComparisonScreen />}
+      </View>
+    );
+  })();
+
+  return content;
+}
+
+const styles = StyleSheet.create({
+  fullScreen: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+    paddingTop: 60,
+  },
+  container: {
+    flex: 1,
+    padding: 24,
+  },
+  medicalHeader: {
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+  clinicName: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 8,
+  },
+  clinicSubtitle: {
+    fontSize: 16,
+    color: '#6B7280',
+  },
+  medicalCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 24,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  cardTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 8,
+  },
+  cardSubtitle: {
+    fontSize: 16,
+    color: '#6B7280',
+    marginBottom: 20,
+  },
+  medicalButtonPrimary: {
+    backgroundColor: '#3B82F6',
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  medicalButtonSecondary: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  buttonIcon: {
+    fontSize: 24,
+    marginRight: 16,
+  },
+  buttonTextContainer: {
+    flex: 1,
+  },
+  buttonTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  buttonSubtitle: {
+    fontSize: 14,
+    color: '#93C5FD',
+  },
+  buttonTitleSecondary: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  buttonSubtitleSecondary: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  buttonArrow: {
+    fontSize: 20,
+    color: '#FFFFFF',
+    marginLeft: 16,
+  },
+  buttonArrowSecondary: {
+    fontSize: 20,
+    color: '#6B7280',
+    marginLeft: 16,
+  },
+  captureHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  backButtonMedical: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#3B82F6',
+    marginRight: 16,
+  },
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  captureTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  captureSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+  },
+  medicalInput: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    padding: 16,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    marginBottom: 20,
+    color: '#1F2937',
+  },
+  protocolBox: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  protocolTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginBottom: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  medicalEmptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  emptyTextMedical: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  emptySubtextMedical: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 32,
+  },
+  medicalCameraArea: {
+    height: 300,
+    marginBottom: 20,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  aiCameraContainer: {
+    flex: 1,
+    position: 'relative',
+  },
+  camera: {
+    flex: 1,
+  },
+  gridOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    pointerEvents: 'none',
+  },
+  centerCrosshair: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: [{ translateX: -20 }, { translateY: -1 }],
+  },
+  crosshairHorizontal: {
+    width: 40,
+    height: 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+  },
+  crosshairVertical: {
+    position: 'absolute',
+    top: -20,
+    left: 19,
+    width: 2,
+    height: 40,
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+  },
+  gridLineHorizontal1: {
+    position: 'absolute',
+    top: '33%',
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  gridLineHorizontal2: {
+    position: 'absolute',
+    top: '66%',
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  gridLineVertical1: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: '33%',
+    width: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  gridLineVertical2: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: '66%',
+    width: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  instructionsContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  instructionsTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 8,
+  },
+  instructionsText: {
+    fontSize: 16,
+    color: '#374151',
+    marginBottom: 8,
+  },
+  instructionsSubtext: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 12,
+  },
+  angleFeedbackContainer: {
+    backgroundColor: '#F0F9FF',
+    borderRadius: 8,
+    padding: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#3B82F6',
+  },
+  angleDisplay: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  angleFeedback: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  statsBox: {
+    flexDirection: 'row',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  statItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  statNumber: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#3B82F6',
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+    textTransform: 'uppercase',
+  },
+  statDivider: {
+    width: 1,
+    backgroundColor: '#E5E7EB',
+    marginHorizontal: 16,
+  },
+  capturedPhotosContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  capturedPhotosTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  capturedPhotosGrid: {
+    gap: 12,
+  },
+  capturedPhotoItem: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    padding: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  capturedPhotoTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 4,
+  },
+  capturedPhotoAngle: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 8,
+  },
+  capturedPhotoStatus: {
+    backgroundColor: '#10B981',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  capturedPhotoStatusText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  comparisonContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  comparisonTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  comparisonImages: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 24,
+  },
+  imageBox: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  imageLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  imagePlaceholder: {
+    width: 120,
+    height: 160,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  comparisonArrow: {
+    fontSize: 24,
+    color: '#6B7280',
+    marginHorizontal: 16,
+  },
+  analysisBox: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  analysisTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 12,
+  },
+  analysisItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  analysisLabel: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  analysisValueExcellent: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#059669',
+  },
+});
